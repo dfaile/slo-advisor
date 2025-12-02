@@ -1,0 +1,109 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: slo-discovery-template
+  title: SLO Discovery Template
+  description: |
+    Automatically generate SLO Implementation Guides from completed SLODLC Discovery worksheets.
+    Upload your Discovery worksheet, select your observability platform, and get a comprehensive
+    SLO Implementation Guide generated using AI. The generated guide will be committed to your
+    repository for version control and team collaboration.
+  tags:
+    - slo
+    - observability
+    - reliability
+    - documentation
+    - slodlc
+spec:
+  owner: platform-team
+  type: service
+  parameters:
+    - title: Discovery Worksheet
+      required:
+        - discoveryWorksheet
+      properties:
+        discoveryWorksheet:
+          title: Upload Discovery Worksheet
+          type: string
+          description: Upload your completed SLODLC Discovery worksheet in Markdown format (.md file only)
+          ui:widget: file
+          ui:options:
+            accept: '.md'
+          pattern: '^.*\.md$'
+          # File type restriction: only .md files allowed
+    - title: Observability Platform
+      required:
+        - observabilityPlatform
+      properties:
+        observabilityPlatform:
+          title: Observability Platform
+          type: string
+          description: Select the observability platform where your SLIs will be configured
+          enum:
+            - Dynatrace
+            - Grafana
+            - LogicMonitor
+            - Splunk
+            - Other
+          enumNames:
+            - Dynatrace
+            - Grafana
+            - LogicMonitor
+            - Splunk
+            - Other
+      dependencies:
+        observabilityPlatform:
+          oneOf:
+            - properties:
+                observabilityPlatform:
+                  const: Other
+                otherObservabilityPlatform:
+                  title: Specify Other Observability Platform
+                  type: string
+                  description: Enter the name of your observability platform
+                  minLength: 1
+                  maxLength: 100
+              required:
+                - otherObservabilityPlatform
+            - properties:
+                observabilityPlatform:
+                  not:
+                    const: Other
+    - title: Service Information
+      required:
+        - serviceName
+      properties:
+        serviceName:
+          title: Service Name
+          type: string
+          description: Enter the name of the service for which the SLO Implementation Guide is being generated
+          ui:autofocus: true
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9_-]+$'
+          # Validation: alphanumeric, hyphens, and underscores only (for file naming)
+        repositoryName:
+          title: Repository Name/URL
+          type: string
+          description: Repository where the generated SLO Implementation Guide will be committed (default: slo_implementation_guides)
+          default: slo_implementation_guides
+          minLength: 1
+          maxLength: 200
+          # Optional field with default value
+  steps:
+    - id: trigger-workflow
+      name: Trigger SLO Guide Generation
+      action: github:actions:dispatch
+      input:
+        repoUrl: ${{ parameters.repositoryName }}
+        workflowId: generate-slo-guide.yml
+        workflowInputs:
+          # Discovery worksheet content (file content as string)
+          discoveryWorksheet: ${{ parameters.discoveryWorksheet }}
+          # Observability platform (selected platform or custom "Other" value)
+          observabilityPlatform: ${{ parameters.observabilityPlatform === 'Other' ? parameters.otherObservabilityPlatform : parameters.observabilityPlatform }}
+          # Service name for the SLO Implementation Guide
+          serviceName: ${{ parameters.serviceName }}
+          # Target repository where the guide will be committed
+          repositoryName: ${{ parameters.repositoryName }}
+

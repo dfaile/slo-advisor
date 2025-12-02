@@ -1,0 +1,96 @@
+name: Generate SLO Implementation Guide
+
+on:
+  workflow_dispatch:
+    inputs:
+      discoveryWorksheet:
+        description: 'Discovery worksheet content (Markdown)'
+        required: true
+        type: string
+      observabilityPlatform:
+        description: 'Observability platform (Dynatrace, Grafana, LogicMonitor, Splunk, or Other)'
+        required: true
+        type: string
+      serviceName:
+        description: 'Service name for the SLO Implementation Guide'
+        required: true
+        type: string
+      repositoryName:
+        description: 'Repository where the guide will be committed (default: current repo)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  generate-slo-guide:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Validate Discovery worksheet
+        run: |
+          # Create temporary file with Discovery worksheet content
+          echo "${{ inputs.discoveryWorksheet }}" > /tmp/discovery-worksheet.md
+          python scripts/slo-advisor/validate-discovery-worksheet.py /tmp/discovery-worksheet.md
+      
+      - name: Generate SLO Implementation Guide
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python scripts/slo-advisor/generate-slo-guide.py \
+            --discovery-worksheet /tmp/discovery-worksheet.md \
+            --observability-platform "${{ inputs.observabilityPlatform }}" \
+            --service-name "${{ inputs.serviceName }}" \
+            --output-file "${{ inputs.serviceName }}-slo-implementation-guide.md"
+        continue-on-error: true
+        id: generate
+      
+      - name: Check if generation succeeded
+        if: steps.generate.outcome == 'success'
+        run: |
+          if [ -f "${{ inputs.serviceName }}-slo-implementation-guide.md" ]; then
+            echo "Guide generated successfully"
+          else
+            echo "Error: Guide file not found"
+            exit 1
+          fi
+      
+      - name: Commit generated guide
+        if: steps.generate.outcome == 'success'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "${{ inputs.serviceName }}-slo-implementation-guide.md"
+          git commit -m "Add SLO Implementation Guide for ${{ inputs.serviceName }}"
+          git push
+      
+      - name: Generate error document on failure
+        if: failure()
+        run: |
+          python scripts/slo-advisor/generate-slo-guide.py \
+            --error \
+            --error-message "SLO Implementation Guide generation failed" \
+            --service-name "${{ inputs.serviceName }}" \
+            --output-file "${{ inputs.serviceName }}-slo-implementation-guide-ERROR.md"
+      
+      - name: Commit error document
+        if: failure()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "${{ inputs.serviceName }}-slo-implementation-guide-ERROR.md"
+          git commit -m "Add error document for ${{ inputs.serviceName }} SLO guide generation"
+          git push
+

@@ -1,0 +1,42 @@
+# Node
+node_modules/
+
+# Build output
+/build/
+/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Env and secrets
+.env
+.env.*
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+/go.sum
+/go.mod
+
+# Cursor
+.cursor/
+tasks/
+
+# Misc
+coverage/ 
