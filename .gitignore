@@ -39,4 +39,7 @@ Thumbs.db
 tasks/
 
 # Misc
-coverage/ 
+coverage/
+
+# SDLC Examples (contains example documents that shouldn't be in repo)
+sdlc_examples/ 
